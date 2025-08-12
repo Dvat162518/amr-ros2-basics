@@ -1,4 +1,4 @@
-# AMR ROS 2 Basics – Project 1
+# AMR ROS 2 Basics
 
 A single-file README containing **everything** you need to teach the first steps of Autonomous Mobile Robot (AMR) development with ROS 2 Humble on Ubuntu 22.04: installation, workspace layout, node code, DDS + QoS theory, ASCII visuals, and Git workflow.
 
