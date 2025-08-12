@@ -177,6 +177,79 @@ ros2 topic info /amr_topic --verbose
 
 to inspect policy matching.
 
+## How DDS and QoS Optimize Node Communication
+### DDS Architecture in ROS2
+#### 1. Discovery Process
+
+Nodes automatically discover each other on the network
+
+No central master required (distributed system)
+
+Uses DDSI-RTPS protocol for real-time communication
+
+Periodic advertisements maintain connectivity
+
+#### 2. Communication Layers
+
+```
+ROS2 Application Layer
+    ↓
+ROS2 Client Library (rclpy/rclcpp)
+    ↓
+ROS Middleware (RMW)
+    ↓
+DDS Implementation (Fast-DDS, Cyclone DDS, etc.)
+    ↓
+Network Transport (UDP/TCP)
+```
+### QoS Policies Explained
+#### 1. Reliability
+
+BEST_EFFORT: Like UDP - fast but may lose messages
+
+RELIABLE: Like TCP - guarantees delivery
+
+#### 2. Durability
+
+VOLATILE: Only for active subscribers
+
+TRANSIENT_LOCAL: Keeps last message for late-joining subscribers
+
+#### 3. History
+
+KEEP_LAST: Maintains only the most recent N messages
+
+KEEP_ALL: Maintains all messages (memory permitting)
+
+#### 4. Deadline
+
+Sets maximum time between message publications
+
+Triggers callback if deadline is missed
+```
+Visual Communication Flow
+text
+┌─────────────────┐                    ┌─────────────────┐
+│   Talker Node   │                    │  Listener Node  │
+│                 │                    │                 │
+│  ┌──────────┐   │    DDS Network     │   ┌──────────┐  │
+│  │Publisher │   │◄──────────────────►│   │Subscriber│  │
+│  │QoS: REL  │   │                    │   │QoS: REL  │  │
+│  └──────────┘   │                    │   └──────────┘  │
+│                 │                    │                 │
+│  Message:       │     ┌─────────┐    │                 │
+│  "Robot OK"     │────►│DDS Topic│────┤                 │
+│                 │     │"amr_topic"   │                 │
+└─────────────────┘     └─────────┘    └─────────────────┘
+
+QoS Matching Process:
+1. Publisher advertises topic with QoS profile
+2. Subscriber joins with compatible QoS profile  
+3. DDS validates QoS compatibility
+4. If compatible → Connection established
+5. If incompatible → Connection rejected
+```
+
 ***
 
 ## 9  Visual Diagrams (ASCII)
@@ -214,4 +287,68 @@ App Nodes (talker / listener)
 Reliability: BEST_EFFORT ──────────── RELIABLE
 Durability : VOLATILE ──────────────── TRANSIENT_LOCAL
 History    : KEEP_LAST(depth=N) ────── KEEP_ALL
+```
+
+```
+ROS2 Node Communication Architecture
+text
+                    ROS2 NETWORK (Domain ID: 0)
+    ┌─────────────────────────────────────────────────────────────┐
+    │                                                             │
+    │  ┌─────────────────┐         ┌─────────────────┐           │
+    │  │   Talker Node   │         │  Listener Node  │           │
+    │  │   ┌─────────┐   │         │   ┌─────────┐   │           │
+    │  │   │Publisher│   │         │   │Subscribe│   │           │
+    │  │   │         │   │         │   │         │   │           │
+    │  │   │QoS:     │   │         │   │QoS:     │   │           │
+    │  │   │RELIABLE │   │         │   │RELIABLE │   │           │
+    │  │   │TRANSIENT│   │         │   │TRANSIENT│   │           │
+    │  │   └─────────┘   │         │   └─────────┘   │           │
+    │  └─────────────────┘         └─────────────────┘           │
+    │           │                           ▲                    │
+    │           │                           │                    │
+    │           ▼                           │                    │
+    │  ┌─────────────────────────────────────────────────────┐   │
+    │  │              DDS MIDDLEWARE                         │   │
+    │  │  ┌─────────────────────────────────────────────┐    │   │
+    │  │  │            Topic: "amr_topic"               │    │   │
+    │  │  │          Message Type: String               │    │   │
+    │  │  │                                             │    │   │
+    │  │  │  QoS Profile Matching:                      │    │   │
+    │  │  │  ✓ Reliability: RELIABLE ↔ RELIABLE         │    │   │
+    │  │  │  ✓ Durability: TRANSIENT ↔ TRANSIENT        │    │   │
+    │  │  │  ✓ History: KEEP_LAST(10) ↔ KEEP_LAST(10)   │    │   │
+    │  │  └─────────────────────────────────────────────┘    │   │
+    │  └─────────────────────────────────────────────────────┘   │
+    │                           │                                │
+    │                           ▼                                │
+    │  ┌─────────────────────────────────────────────────────┐   │
+    │  │            NETWORK TRANSPORT                        │   │
+    │  │              (UDP/TCP)                              │   │
+    │  └─────────────────────────────────────────────────────┘   │
+    └─────────────────────────────────────────────────────────────┘
+
+    Message Flow Timeline:
+    1. Talker creates message: "AMR Message 0: Robot status OK"
+    2. DDS serializes message with QoS metadata
+    3. DDSI-RTPS protocol transmits over network
+    4. DDS receives and validates QoS compatibility  
+    5. Message delivered to Listener callback
+    6. Listener processes: "Received: AMR Message 0: Robot status OK"
+```
+## Expected Results
+```
+Terminal Output - Talker
+
+[INFO] [1723371542.123456789] [amr_talker]: AMR Talker Node Started
+[INFO] [1723371543.123456789] [amr_talker]: Publishing: "AMR Message 0: Robot status OK"
+[INFO] [1723371544.123456789] [amr_talker]: Publishing: "AMR Message 1: Robot status OK"
+[INFO] [1723371545.123456789] [amr_talker]: Publishing: "AMR Message 2: Robot status OK"
+Terminal Output - Listener
+```
+```
+[INFO] [1723371543.123456789] [amr_listener]: AMR Listener Node Started
+[INFO] [1723371543.234567890] [amr_listener]: Received: "AMR Message 0: Robot status OK"
+[INFO] [1723371544.234567890] [amr_listener]: Received: "AMR Message 1: Robot status OK"
+[INFO] [1723371545.234567890] [amr_listener]: Received: "AMR Message 2: Robot status OK"
 ```
