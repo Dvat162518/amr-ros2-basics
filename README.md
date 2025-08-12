@@ -15,9 +15,8 @@ A single-file README containing **everything** you need to teach the first steps
 7. ROS 2 Architecture
 8. DDS \& QoS Deep-Dive
 9. Visual Diagrams (ASCII)
-10. Git Commands Cheat-Sheet
-11. Further Reading
 
+    
 ***
 
 ## 1  Project Goals
